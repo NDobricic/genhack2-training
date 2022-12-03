@@ -16,7 +16,8 @@ from utils import *
 
 props = {
     'device': torch.device("cuda"),
-    'data_length': 8032,
+    'data_start': 0,
+    'data_length': 1024,
     'latent_dim': 6,
     'batch_size': 32,
     'snapshot_at': 100,
@@ -76,12 +77,7 @@ def run():
     data = load_data('df_train.csv')
     gen_path = train(data)
 
-    data_length = props['data_length']
-    real_data = data[:data_length, :]
-    generated_data = generate(data_length, gen_path)
-
-    plot_results(real_data, 'Real')
-    plot_results(generated_data, 'Generated')
+    compare(props['data_start'], props['data_start'], gen_path)
 
 
 def compare(ntest, nstart, file):
