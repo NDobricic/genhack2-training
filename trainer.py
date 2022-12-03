@@ -14,7 +14,7 @@ from generator import Generator
 from discriminator import Discriminator
 
 def train(data, props, folder):
-    generator = Generator(props['latent_dim'])
+    generator = Generator(props['latent_dim']).to(device=props['device'])
     discriminator = Discriminator().to(device=props['device'])
     
     data_length = props['data_length'] - props['data_length'] % props['batch_size']
@@ -97,7 +97,7 @@ def train(data, props, folder):
     
                 output_discriminator_generated = discriminator(
                     generated_samples + sample_noise * props['noise_scale']
-                )
+                ).to(device=props['device'])
     
                 loss_generator = props['loss_func'](
                     output_discriminator_generated, real_samples_labels
