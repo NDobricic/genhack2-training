@@ -77,7 +77,7 @@ def run():
     data = load_data('df_train.csv')
     gen_path = train(data)
 
-    compare(props['data_start'], props['data_start'], gen_path)
+    compare(props['data_length'], props['data_start'], gen_path)
 
 
 def compare(ntest, nstart, file):
