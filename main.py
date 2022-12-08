@@ -1,33 +1,31 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sb
 from datetime import datetime
 
 import torch
 from torch import nn
 
-# import tester
-import trainer
-
-from generator import Generator
-from error import Errors
+from error import anderson_darling, kendall
+from gan_separate import GAN
 
 from utils import *
 
 props = {
-    'device': torch.device("cuda"),
-    'data_start': 0,
-    'data_length': 1024,
+    'device': torch.device("cpu"),
+    'data_start': 7000,
+    'data_length': 2180,
     'latent_dim': 6,
-    'batch_size': 32,
+    'batch_size': 128,
     'snapshot_at': 100,
     'gen_lr': 0.001,
     'disc_lr': 0.0008,
-    'noise_scale': 0.03,
+    'noise_scale': -0.015,
     'loss_func': nn.BCELoss(),
     'disc_step': 1,
-    'gen_step': 5,
-    'num_epochs': 300,
+    'gen_step': 1,
+    'num_epochs': 1000,
     'snapshot_interval': 100
 }
 
@@ -43,11 +41,6 @@ def load_data(file):
     return data
 
 
-def train(data):
-    date_time_str = datetime.now().strftime("%Y-%m-%d %H;%M;%S")
-    return trainer.train(data, props, f'saved/{date_time_str}')
-
-
 def plot_results(plot_data, title):
     figure = plt.figure()
     figure.suptitle(title)
@@ -60,41 +53,61 @@ def plot_results(plot_data, title):
 
     plt.show()
 
+def plot_results2(plot_data, title):
+    figure = plt.figure()
+    figure.suptitle(title)
+    for i in range(6):
+        subplot = figure.add_subplot(2, 3, i + 1)
+        subplot.set_ylim([0, 300])
+        subplot.set_title(f'Station {i + 1}')
+        sb.histplot([x[i] for x in plot_data], kde=True)
 
-def generate(train_data_length, file):
-    latent_variable = torch.randn(train_data_length, props['latent_dim'])
+    figure.tight_layout()
 
-    generator = Generator(props['latent_dim'])
-    generator.load_state_dict(torch.load(file))
-    generator.eval()
+    plt.show()
 
-    generated_samples = generator(latent_variable)
-    generated_samples = generated_samples.detach().cpu().tolist()
-    return generated_samples
+def plot_results3(real, fake, title):
+    figure = plt.figure()
+    figure.suptitle(title)
+    for i in range(6):
+        subplot = figure.add_subplot(2, 3, i + 1)
+        #subplot.set_ylim([0, 1])
+        subplot.set_title(f'Station {i + 1}')
+        sb.histplot([x[i] for x in real], kde=True, stat="density")
+        sb.histplot([x[i] for x in fake], kde=True, stat="density")
+
+    figure.tight_layout()
+
+    plt.show()
 
 
 def run():
     data = load_data('df_train.csv')
-    gen_path = train(data)
+    date_time_str = datetime.now().strftime("%Y-%m-%d %H;%M;%S")
+    gan = GAN(props, 6, f'saved\\{date_time_str}')
+    gan.train(data)
 
-    compare(props['data_length'], props['data_start'], gen_path)
+    compare(gan, props['data_length'], props['data_start'])
+
+    return gan
 
 
-def compare(ntest, nstart, file):
-    data = load_data('df_train.csv')
+def compare(gan, num_samples, offset):
+    data = load_data('df_test.csv')
 
-    real_data = data[nstart:ntest+nstart, :]
-    generated_data = generate(ntest, file)
+    real_data = data[offset:num_samples + offset, :]
+    generated_data = gan.generate(num_samples)
 
-    plot_results(real_data, 'Real')
-    plot_results(generated_data, file)
-
-    error = Errors(np.transpose(real_data), np.transpose(generated_data))
+    print('Plotting results...')
+    # plot_results2(real_data, 'Real')
+    # plot_results2(generated_data, file)
+    plot_results3(real_data, generated_data, str(gan))
+    print(generated_data)
 
     print('Calculating marginal error...')
-    marginal_error = error.marginal()
-    print(marginal_error)
+    marginal_error = anderson_darling(real_data, generated_data)
+    print(f'Marginal error is {marginal_error}')
 
     print('Calculating dependency error...')
-    dependency_error = error.dependency()
+    dependency_error = kendall(real_data, generated_data)
     print(dependency_error)

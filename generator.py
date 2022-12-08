@@ -2,7 +2,7 @@ from torch import nn
 
 class Generator(nn.Module):
 
-    def __init__(self, latent_dimension):
+    def __init__(self, latent_dimension, output_dim):
         super().__init__()
 
         self.latent_dim = latent_dimension
@@ -11,7 +11,7 @@ class Generator(nn.Module):
             nn.ReLU(),
             nn.Linear(16, 32),
             nn.ReLU(),
-            nn.Linear(32, 6),
+            nn.Linear(32, output_dim),
         )
 
     def forward(self, x):

@@ -22,12 +22,11 @@ def train(data, props, folder):
     data = data[:data_length, :]
 
     # prepare training set
-    train_data = torch.zeros((data_length, 6))
+    train_data = torch.zeros(data_length)
 
-    for i in range(6):
-        train_data[:, i] = torch.Tensor(data[:, i])
+    train_data[:] = torch.Tensor(data[:])
 
-    train_labels = torch.zeros((data_length, 6))
+    train_labels = torch.zeros(data_length)
 
     train_set = [(train_data[i], train_labels) for i in range(data_length)]
 
@@ -48,7 +47,7 @@ def train(data, props, folder):
         for n, (real_samples, _) in enumerate(train_loader):
 
             real_samples = real_samples.to(device=props['device'])
-            real_samples_labels = torch.ones((props['batch_size'], 6)).to(device=props['device'])
+            real_samples_labels = torch.ones(props['batch_size']).to(device=props['device'])
 
             # Data for training the discriminator
 
@@ -59,9 +58,7 @@ def train(data, props, folder):
 
                 generated_samples = generator(latent_space_samples)
 
-                generated_samples_labels = torch.zeros(
-                    (props['batch_size'], 6)
-                ).to(device=props['device'])
+                generated_samples_labels = torch.zeros(props['batch_size']).to(device=props['device'])
 
                 # real_samples_labels, generated_samples_labels = generated_samples_labels, real_samples_labels
                 all_samples = torch.cat((real_samples, generated_samples))
@@ -91,7 +88,7 @@ def train(data, props, folder):
                 generator.zero_grad()
 
                 generated_samples = generator(latent_space_samples)
-                sample_noise = torch.rand((props['batch_size'], 6)).to(device=props['device'])
+                sample_noise = torch.rand(props['batch_size']).to(device=props['device'])
 
                 output_discriminator_generated = discriminator(
                     generated_samples + sample_noise * props['noise_scale']
@@ -119,8 +116,6 @@ def train(data, props, folder):
         json.dump(props, file, cls=MyEncoder)
 
     print(f'Time taken: {time.time() - start_time}')
-
-    return os.path.join(folder, 'gen')
 
 
 class MyEncoder(JSONEncoder):

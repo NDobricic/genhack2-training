@@ -1,69 +1,42 @@
-# -*- coding: utf-8 -*-
-import math
+from math import log
+import numpy as np
 
 
-class Errors:
+def anderson_darling(real_samples, generated_samples):
+    real = np.transpose(real_samples)
+    fake = np.sort(np.transpose(generated_samples))
 
-    def __init__(self, real_samples, gen_samples):
-        self.real_samples = real_samples
-        self.gen_samples = gen_samples
+    ntest = len(real[0])
+    num_stations = len(real)
 
-        self.ntest = len(real_samples[0])
-        self.num_columns = len(real_samples)  # number of stations(6)
+    u = np.zeros((num_stations, ntest))
+    for s in range(num_stations):
+        for i in range(ntest):
+            u[s, i] = (sum([1 if real[s, j] <= fake[s, i] else 0 for j in range(ntest)]) + 1) / (ntest + 2)
 
-    def cumulative(self, i, s):
-        datasort = []
-        for k in range(6):
-            datasort.append(sorted(self.gen_samples[k]))
+    w = np.zeros(num_stations)
+    for s in range(num_stations):
+        w[s] = -ntest - sum(
+            [(2 * (i + 1) - 1) * (log(u[s, i]) + log(1 - u[s, ntest - i - 1])) for i in range(ntest)]) / ntest
 
-        summ = 0
-        xi = datasort[s][i]
-        for x in self.real_samples[s]:
-            if x <= xi:
-                summ += 1
-        return (summ + 1) / (self.ntest + 2)
+    return sum(w) / num_stations
 
-    def marginal(self):
+def kendall(real_samples, generated_samples):
+    real = np.transpose(real_samples)
+    fake = np.transpose(generated_samples)
 
+    ntest = len(real[0])
+    num_stations = len(real)
 
-        w = [0, 0, 0, 0, 0, 0]
-        for s in range(self.num_columns):
-            for i in range(self.ntest):
-                u = self.cumulative(i, s)
-                u1 = self.cumulative(self.ntest - i - 1, s)
-                w[s] += (2 * i + 1) * (math.log(u) + math.log(1 - u1)) / (-self.ntest)
-            w[s] -= self.ntest
-        return sum(w) / self.num_columns
+    r = [sum([1 if all(
+        [real[s, j] < real[s, i] for s in range(num_stations)]
+    ) else 0 for j in range(ntest) if i != j]) / (ntest - 1) for i in range(ntest)]
 
-    def r(self, i, b):
-        summ1 = 0
-        if b == 0:
-            data = self.gen_samples
-        else:
-            data = self.real_samples
+    rt = [sum([1 if all(
+        [fake[s, j] < fake[s, i] for s in range(num_stations)]
+    ) else 0 for j in range(ntest) if i != j]) / (ntest - 1) for i in range(ntest)]
 
-        for j in range(self.ntest):
-            if not (j == i):
-                ind = True
-                for s in range(self.num_columns):
-                    if data[s][j] >= data[s][i]:
-                        ind = False
-                if ind:
-                    summ1 += 1
-        return summ1 / (self.ntest - 1)
+    r = np.sort(r)
+    rt = np.sort(rt)
 
-    def dependency(self):
-        summ = 0
-        r1 = []
-        r2 = []
-        for i in range(self.ntest):
-            r1.append(self.r(i, 0))
-            r2.append(self.r(i, 1))
-
-        r1 = sorted(r1)
-        r2 = sorted(r2)
-
-        for i in range(self.ntest):
-            summ += abs(r1[i] - r2[i])
-
-        return summ / self.ntest
+    return sum([abs(r[i] - rt[i]) for i in range(ntest)]) / ntest
