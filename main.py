@@ -8,20 +8,21 @@ import torch
 from torch import nn
 
 from error import anderson_darling, kendall
-from gan_separate import GAN
+from gan import GAN
 
 from utils import *
+from vae import VAE
 
 props = {
-    'device': torch.device("cpu"),
+    'device': torch.device("cuda"),
     'data_start': 7000,
     'data_length': 2180,
     'latent_dim': 6,
-    'batch_size': 128,
+    'batch_size': 16,
     'snapshot_at': 100,
     'gen_lr': 0.001,
     'disc_lr': 0.0008,
-    'noise_scale': -0.015,
+    'noise_scale': -0.01,
     'loss_func': nn.BCELoss(),
     'disc_step': 1,
     'gen_step': 1,
@@ -33,10 +34,13 @@ props = {
 # torch.manual_seed(111)
 
 def load_data(file):
-    columns = ["dates", "s1", "s2", "s3", "s4", "s5", "s6"]
+    columns = ["s1", "s2", "s3", "s4", "s5", "s6"]
     df = pd.read_csv(file, usecols=columns)
+    df = (df - df.mean()) / df.std()
 
-    data = np.asarray(df.iloc[:, 1:].values.tolist())
+    data = np.asarray(df.values.tolist())
+
+    print(data)
 
     return data
 
@@ -53,6 +57,7 @@ def plot_results(plot_data, title):
 
     plt.show()
 
+
 def plot_results2(plot_data, title):
     figure = plt.figure()
     figure.suptitle(title)
@@ -66,12 +71,13 @@ def plot_results2(plot_data, title):
 
     plt.show()
 
+
 def plot_results3(real, fake, title):
     figure = plt.figure()
     figure.suptitle(title)
     for i in range(6):
         subplot = figure.add_subplot(2, 3, i + 1)
-        #subplot.set_ylim([0, 1])
+        # subplot.set_ylim([0, 1])
         subplot.set_title(f'Station {i + 1}')
         sb.histplot([x[i] for x in real], kde=True, stat="density")
         sb.histplot([x[i] for x in fake], kde=True, stat="density")
@@ -93,7 +99,7 @@ def run():
 
 
 def compare(gan, num_samples, offset):
-    data = load_data('df_test.csv')
+    data = load_data('df_train.csv')
 
     real_data = data[offset:num_samples + offset, :]
     generated_data = gan.generate(num_samples)
@@ -102,6 +108,7 @@ def compare(gan, num_samples, offset):
     # plot_results2(real_data, 'Real')
     # plot_results2(generated_data, file)
     plot_results3(real_data, generated_data, str(gan))
+    print(real_data)
     print(generated_data)
 
     print('Calculating marginal error...')

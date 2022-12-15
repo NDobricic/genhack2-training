@@ -16,8 +16,7 @@ def anderson_darling(real_samples, generated_samples):
 
     w = np.zeros(num_stations)
     for s in range(num_stations):
-        w[s] = -ntest - sum(
-            [(2 * (i + 1) - 1) * (log(u[s, i]) + log(1 - u[s, ntest - i - 1])) for i in range(ntest)]) / ntest
+        w[s] = -ntest - sum([(2 * (i + 1) - 1) * (log(u[s, i]) + log(1 - u[s, ntest - i - 1])) for i in range(ntest)]) / ntest
 
     return sum(w) / num_stations
 
