@@ -58,6 +58,32 @@ def compare(model, file, num_samples, offset):
     marginal_error = err.anderson_darling(real_data, generated_data)
     print(f'Marginal error is {marginal_error}')
 
+
+def compare_cvae(model, file, num_samples, offset):
+    stations = [[-3.242, -11.375],
+                [-4.992, -0.425],
+                [-0.292, 2.875],
+                [7.758, 3.525],
+                [1.608, -6.025],
+                [-0.842, 11.425]]
+
+    data = load_data(file)
+
+    num_samples = num_samples if num_samples > 0 else len(data) - offset
+    real_data = data[offset:num_samples + offset, :]
+    model.eval()
+    generated_data = np.zeros((num_samples, 6))
+    for i in range(num_samples):
+        for s in range(6):
+            generated_data[i, s] = model.generate_sample(stations[s]).detach().cpu().tolist()[0]
+
+    print('Plotting results...')
+    plot_results(real_data, generated_data, f'{model.name}-e{model.current_epoch}')
+
+    print('Calculating marginal error...')
+    marginal_error = err.anderson_darling(real_data, generated_data)
+    print(f'Marginal error is {marginal_error}')
+
     print('Calculating dependency error...')
     dependency_error = err.kendall(real_data, generated_data)
     print(dependency_error)
