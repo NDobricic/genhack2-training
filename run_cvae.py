@@ -15,4 +15,4 @@ stations = [[-3.242, -11.375],
 train_set = [(torch.tensor([data[x, s]]), torch.tensor(stations[s])) for x in range(len(data)) for s in range(6)]
 data_loader = torch.utils.data.DataLoader(train_set, batch_size=32, shuffle=True)
 
-vae.fit(data_loader, 50)
+cvae.fit(data_loader, 50)
