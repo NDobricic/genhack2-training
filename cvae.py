@@ -37,6 +37,8 @@ class CVAE(nn.Module):
                 nn.ReLU(),
                 nn.Linear(16, 32),
                 nn.ReLU(),
+                nn.Linear(32, 32),
+                nn.ReLU(),
                 nn.Linear(32, output_dim)
             )
 
@@ -46,22 +48,30 @@ class CVAE(nn.Module):
 
             return x
 
-    def __init__(self, output_dim, latent_dim, conditional_dim, name):
+    def __init__(self, df_train, conditionals, output_dim, latent_dim, conditional_dim, name, device='cpu'):
         super().__init__()
+
+        self.df_min = df_train.min()
+        self.df_max = df_train.max()
+        df_train = (df_train - self.df_min) / (self.df_max - self.df_min)
+        train_set = [(torch.tensor([df_train[x, s]]), torch.tensor(conditionals[s]))
+                     for x in range(len(df_train)) for s in range(6) if s != 2]
+        self.data_loader = torch.utils.data.DataLoader(train_set, batch_size=32, shuffle=True)
 
         self.current_epoch = 0
 
         self.name = name
+        self.device = torch.device(device)
 
         self.output_dim = output_dim
         self.latent_dim = latent_dim
         self.conditional_dim = conditional_dim
 
-        self.encoder = self.Encoder(output_dim, latent_dim, conditional_dim)
-        self.decoder = self.Decoder(output_dim, latent_dim, conditional_dim)
+        self.encoder = self.Encoder(output_dim, latent_dim, conditional_dim).to(device=self.device)
+        self.decoder = self.Decoder(output_dim, latent_dim, conditional_dim).to(device=self.device)
 
         # define the Adam optimizer
-        self.optimizer = torch.optim.Adam(self.parameters(), betas=[0.5, 0.999])
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=0.0005, betas=[0.5, 0.999])
 
     def encode(self, x, c):
         return self.encoder(x, c)
@@ -87,7 +97,7 @@ class CVAE(nn.Module):
         # return the decoded output
         return output, mu, log_var
 
-    def fit(self, data_loader, num_epochs):
+    def fit(self, num_epochs):
         self.train()
 
         # define the loss function
@@ -109,10 +119,10 @@ class CVAE(nn.Module):
 
         # train the VAE model
         for epoch in range(num_epochs):
-            for x, c in data_loader:
+            for x, c in self.data_loader:
                 # extract the input data
-                x = x.float()
-                c = c.float()
+                x = x.float().to(device=self.device)
+                c = c.float().to(device=self.device)
 
                 # reset the gradients
                 self.optimizer.zero_grad()
@@ -130,7 +140,7 @@ class CVAE(nn.Module):
                 self.optimizer.step()
 
             if (self.current_epoch + epoch) % 10 == 0:
-                print(f'Epoch {self.current_epoch + epoch}/{self.current_epoch + num_epochs}')
+                print(f'Epoch {self.current_epoch + epoch}/{self.current_epoch + num_epochs} LOSS: {loss}')
 
         self.current_epoch += num_epochs
         print('Training finished')
@@ -148,6 +158,8 @@ class CVAE(nn.Module):
         # save the state to a file
         torch.save(state_dict, file_path)
 
+        print(f'Saved parameters to {file_path}')
+
     def resume(self, file_path):
         # load the state from a file
         state_dict = torch.load(file_path)
@@ -160,11 +172,11 @@ class CVAE(nn.Module):
 
     def generate_sample(self, condition):
         # generate latent vector
-        latent_vector = torch.randn(self.latent_dim)
-        condition = torch.tensor(condition)
+        latent_vector = torch.randn(self.latent_dim).to(device=self.device)
+        condition = torch.tensor(condition).to(device=self.device)
 
         # decode the latent vector
-        sample = self.decode(latent_vector, condition)
+        sample = self.decode(latent_vector, condition) * (self.df_max - self.df_min) + self.df_min
 
         # return the generated sample
         return sample

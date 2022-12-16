@@ -35,7 +35,7 @@ def load_data(file):
     columns = ["s1", "s2", "s3", "s4", "s5", "s6"]
     df = pd.read_csv(file, usecols=columns)
     # df = (df - df.mean()) / df.std()
-    df = (df - df.min()) / (df.max() - df.min())
+    # df = (df - df.min()) / (df.max() - df.min())
 
     data = np.asarray(df.values.tolist())
 
@@ -59,7 +59,7 @@ def compare(model, file, num_samples, offset):
     print(f'Marginal error is {marginal_error}')
 
 
-def compare_cvae(model, file, num_samples, offset):
+def compare_cvae(model, file, num_samples, offset, calc_ad=True, calc_dep=True):
     stations = [[-3.242, -11.375],
                 [-4.992, -0.425],
                 [-0.292, 2.875],
@@ -80,13 +80,17 @@ def compare_cvae(model, file, num_samples, offset):
     print('Plotting results...')
     plot_results(real_data, generated_data, f'{model.name}-e{model.current_epoch}')
 
-    print('Calculating marginal error...')
-    marginal_error = err.anderson_darling(real_data, generated_data)
-    print(f'Marginal error is {marginal_error}')
+    model.save()
 
-    print('Calculating dependency error...')
-    dependency_error = err.kendall(real_data, generated_data)
-    print(dependency_error)
+    if calc_ad:
+        print('Calculating marginal error...')
+        marginal_error = err.anderson_darling(real_data, generated_data)
+        print(f'Marginal error is {marginal_error}')
+
+    if calc_dep:
+        print('Calculating dependency error...')
+        dependency_error = err.kendall(real_data, generated_data)
+        print(dependency_error)
 
 
 def path_from_name(name):
