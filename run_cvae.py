@@ -12,4 +12,4 @@ stations = [[-3.242, -11.375],
             [-0.842, 11.425]]
 
 cvae = CVAE(df_train=data, conditionals=stations, output_dim=1,
-            latent_dim=12, conditional_dim=2, name=name, device="cpu")
+            latent_dim=3, conditional_dim=2, name=name, device="cpu")

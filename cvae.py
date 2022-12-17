@@ -55,7 +55,7 @@ class CVAE(nn.Module):
         self.df_max = df_train.max()
         df_train = (df_train - self.df_min) / (self.df_max - self.df_min)
         train_set = [(torch.tensor([df_train[x, s]]), torch.tensor(conditionals[s]))
-                     for x in range(len(df_train)) for s in range(6) if s != 2]
+                     for x in range(len(df_train)) for s in range(6)]
         self.data_loader = torch.utils.data.DataLoader(train_set, batch_size=32, shuffle=True)
 
         self.current_epoch = 0
