@@ -60,12 +60,12 @@ def compare(model, file, num_samples, offset):
 
 
 def compare_cvae(model, file, num_samples, offset, calc_ad=True, calc_dep=True):
-    stations = [[-3.242, -11.375],
-                [-4.992, -0.425],
-                [-0.292, 2.875],
-                [7.758, 3.525],
-                [1.608, -6.025],
-                [-0.842, 11.425]]
+    stations = [-3.242, -11.375,
+                -4.992, -0.425,
+                -0.292, 2.875,
+                7.758, 3.525,
+                1.608, -6.025,
+                -0.842, 11.425]
 
     data = load_data(file)
 
@@ -75,7 +75,9 @@ def compare_cvae(model, file, num_samples, offset, calc_ad=True, calc_dep=True):
     generated_data = np.zeros((num_samples, 6))
     for i in range(num_samples):
         for s in range(6):
-            generated_data[i, s] = model.generate_sample(stations[s]).detach().cpu().tolist()[0]
+            noise = np.random.randn(50)
+            position = stations[s*2:(s+1)*2]
+            generated_data[i, s] = model.generate_sample(noise, position)
 
     print('Plotting results...')
     plot_results(real_data, generated_data, f'{model.name}-e{model.current_epoch}')

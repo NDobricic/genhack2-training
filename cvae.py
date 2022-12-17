@@ -2,6 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import numpy as np
+import os
+
+
+
 
 # create a CVAE model
 class CVAE(nn.Module):
@@ -47,14 +52,16 @@ class CVAE(nn.Module):
             x = self.model(x)
 
             return x
-
     def __init__(self, df_train, conditionals, output_dim, latent_dim, conditional_dim, name, device='cpu'):
         super().__init__()
 
         self.df_min = df_train.min()
         self.df_max = df_train.max()
+        self.df_mean = df_train.mean()
+        self.df_std = df_train.std()
+        df_train = (df_train - self.df_mean) / self.df_std
         df_train = (df_train - self.df_min) / (self.df_max - self.df_min)
-        train_set = [(torch.tensor([df_train[x, s]]), torch.tensor(conditionals[s]))
+        train_set = [(torch.tensor([df_train[x, s]]), torch.tensor(conditionals[s*2:(s+1)*2]))
                      for x in range(len(df_train)) for s in range(6)]
         self.data_loader = torch.utils.data.DataLoader(train_set, batch_size=32, shuffle=True)
 
@@ -147,36 +154,54 @@ class CVAE(nn.Module):
 
     def save(self):
         # create the save path for the model
-        file_path = f'saved\\{self.name}-e{self.current_epoch}.params'
+        file_path = f'saved\\{self.name}-e{self.current_epoch}\\'
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
 
-        # create a dictionary containing the model's parameters
-        state_dict = {
-            'model_state_dict': self.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict()
-        }
-
-        # save the state to a file
-        torch.save(state_dict, file_path)
+        torch.save(self.encoder.state_dict(), file_path + 'encoder')
+        torch.save(self.decoder.state_dict(), file_path + 'decoder')
+        torch.save(self.optimizer.state_dict(), file_path + 'optimizer')
+        attributes = {'df_min': self.df_min,
+                      'df_max': self.df_max,
+                      'df_mean': self.df_mean,
+                      'df_std': self.df_std,
+                      'latent_dim': self.latent_dim,
+                      'conditional_dim': self.conditional_dim,
+                      'output_dim': self.output_dim}
+        torch.save(attributes, file_path + 'attributes')
 
         print(f'Saved parameters to {file_path}')
 
-    def resume(self, file_path):
+    def load(self, file_path):
         # load the state from a file
         state_dict = torch.load(file_path)
 
-        # load the model's parameters
-        self.load_state_dict(state_dict['model_state_dict'])
+        # load the attributes
+        self.current_epoch = state_dict['attributes_dict']['current_epoch']
+        self.df_min = state_dict['attributes_dict']['df_min']
+        self.df_max = state_dict['attributes_dict']['df_max']
+        self.output_dim = state_dict['attributes_dict']['output_dim']
+        self.latent_dim = state_dict['attributes_dict']['latent_dim']
+        self.conditional_dim = state_dict['attributes_dict']['conditional_dim']
+
+        # load the encoder's parameters
+        self.encoder.load_state_dict(state_dict['encoder_state_dict'])
+
+        # load the decoder's parameters
+        self.decoder.load_state_dict(state_dict['decoder_state_dict'])
 
         # load the optimizer's parameters
         self.optimizer.load_state_dict(state_dict['optimizer_state_dict'])
 
-    def generate_sample(self, condition):
-        # generate latent vector
-        latent_vector = torch.randn(self.latent_dim).to(device=self.device)
-        condition = torch.tensor(condition).to(device=self.device)
+    def generate_sample(self, noise, condition):
+        self.eval()
+
+        latent_vector = torch.tensor(noise[:self.latent_dim]).float().to(device=self.device)
+        condition = torch.tensor(condition[:self.conditional_dim]).float().to(device=self.device)
 
         # decode the latent vector
         sample = self.decode(latent_vector, condition) * (self.df_max - self.df_min) + self.df_min
+        sample = sample * self.df_std + self.df_mean
 
         # return the generated sample
-        return sample
+        return np.asarray(sample.detach().cpu())
